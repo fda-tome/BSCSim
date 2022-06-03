@@ -2,8 +2,8 @@ using BenchmarkTools
 function cumuSum(n)
     A = rand(Float64, n)
     acc = 0
-    for i=1:size(A, 1)
-        acc += A[i]
+    for i in A
+        acc += i
     end
 end
 

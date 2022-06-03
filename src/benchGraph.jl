@@ -9,5 +9,5 @@ n = [10^x for x=2:6]
 plot(n, pythonSeries, seriestype = :scatter, labels = "Python", markersize = 6) 
 plot!(n, cSeries, seriestype = :scatter, labels = "C", markersize = 6)
 plot!(n, juliaSeries,  seriestype = :scatter, labels = "Julia", markersize = 6)
-plot!(legend = :bottomright, xscale = :log , yscale = :log, ytitle = "Tempo de execução(ms)", xtitle = "Número de entradas")
+plot!(legend = :bottomright, xscale = :log , yscale = :log, ylabel = "Tempo de execução(ms)", xlabel = "n")
 savefig("bench")
