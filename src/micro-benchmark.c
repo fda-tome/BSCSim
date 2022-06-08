@@ -10,7 +10,7 @@ void main(){
         clock_gettime(CLOCK_MONOTONIC_RAW, &start);
         acc = 0;
         while(i < n)
-            A[i++] = (float)rand()/(float)(RAND_MAX/1.0);
+            A[i++] = (float)rand();
         i = 0;
         while(i < n)
             acc += A[i++];
