@@ -1,10 +1,5 @@
-using Bessels
-function sphericalBessel()
-    
-end
+using SpecialFunctions
+using AssociatedLegendrePolynomials
 
-
-function BSC(phi::Function, k, r)
-    (factorial(n-m) * (2* n + 1))/(4 * pi * factorial(n + m) * besselj(k * r))
-end
-
+function besbeam(psiamp, axiconang, order, z, phi)
+        
