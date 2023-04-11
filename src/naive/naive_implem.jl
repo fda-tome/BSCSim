@@ -1,50 +1,65 @@
 using Bessels
 using SpecialFunctions
-using AssociatedLegendrePolynomials
+using LegendrePolynomials
 using Plots
+using BenchmarkTools
 
+global fact = zeros(typeof(big(1)*big(1)), 10000)
+fact[1] = 1
 
-
-sphericalbesselj(nu, x::T) where T = sqrt(T(pi)/(2 * x)) * Bessels.besselj(nu + one(T)/2, x)
-
-function generalPlm(l, m, x)
-    if m < 0
-        return ((-1)^m) * (factorial(big(l-m)) / factorial(big(l+m))) * Plm(l, -m, x)
-    else
-        return Plm(l, m, x)
+function factorial(x::T) where T<:BigInt
+    if x == 0
+        return 1
     end
+    if fact[x] == zero(BigInt)
+        i::typeof(x*x) = x
+        while fact[i] == zero(typeof(x*x))
+            i-=1
+        end
+        i+=1
+        while i != x + 1
+            fact[i] = fact[i-1] * i
+            i+=1
+        end
+    end
+    return fact[x]
 end
 
 function besbeam(psiamp, axiconang, order, rho, phi, z) 
     k = 1000 * 2 * big(pi) / big(1.54) #fixed wavelength 1.54mm
-    kz = k * big(cosd(axiconang))
-    krho = k * big(sind(axiconang))
-    return big(psiamp * besselj(order, krho * rho) * cis(order * phi) * cis(kz * z))
+    kz = k * big(cos(axiconang))
+    krho = k * big(sin(axiconang))
+    return big(psiamp * SpecialFunctions.besselj(order, krho * rho) * cis(order * phi) * cis(kz * z))
 end
 
 function bsccalc(n, m, axiconang, order, krho, kz, phi0, z0, rho0)
     fract = (im ^ (n - m)) * (2 * n + 1) * factorial(big(n - m)) / factorial(big(n+m))
-    special = SpecialFunctions.besselj(m - order, krho * rho0) * generalPlm(n, m, cos(axiconang))
-    cisval = cis(-(m + order) * phi0) * cis(-kz * z0)
-    return fract * special * cisval
+    special = Plm(cos(axiconang), n, m)
+    return fract * special 
 end
 
 function partialwavexp(psiamp, axiconang, order, r, theta, phi)
-    k = 1000 * 2 * big(pi) / 1.54
+    k = 1000 * 2 * big(pi) / big(1.54)
     kr = k * r
+    norm = k * r
     krho = k * sin(axiconang)
     kz = k * cos(axiconang)
     phi0 = z0 = rho0 = 0
-    nmax = Int64(ceil(kr + (big(405) / 100) * (kr^(1/3)) + 2))
+    nmax = 30 #Int64(ceil(norm + (big(405) / 100) * (norm^(1/3)) + 2))
     psi = 0
+    besselm = []
+    cisvalm = []
+    for m in -nmax:nmax
+        push!(cisvalm,  cis(-(m + order) * phi0) * cis(-kz * z0))
+        push!(besselm, SpecialFunctions.besselj(m - order, krho * rho0))
+    end
     for n in 0:nmax
-        spher = sphebesselj(Int64(n), Float64(kr))
+        spher = SpecialFunctions.sphericalbesselj(Int64(n), Float64(kr))
         for m in -n:n
             BSC = bsccalc(n, m, axiconang, order, krho, kz, phi0, z0, rho0)
-            psi += BSC * spher * generalPlm(n, m, cos(theta)) * cis(m * phi)
+            psi += cisvalm[m + nmax + 1] * besselm[m + nmax + 1] * BSC * spher * Plm(cos(theta), n, m) * cis(m * phi)
         end
     end
-
     return psi * psiamp
 end
 
@@ -55,26 +70,37 @@ function makeplotbes(nx, ny, ry, rx, psiamp)
     y = range(-ry, ry, ny)
     axang = [deg2rad(1), deg2rad(10), deg2rad(40)]
     ord = [0, 1, 5]
+    mag = 10
+    alf = ['a','b', 'c', 'd', 'e', 'f', 'g', 'h', 'i' ]
+    alfcount = 0
     htmaps = Vector{Any}()
-    for order in ord, axiconang in axang
-        beamaux = Vector{BigFloat}()
-        for j in y, i in x
-            rho =  sqrt(big(i)^2 + big(j)^2)
-            if j > 0
-                phi = big(acos(big(i) / rho))
-            else
-                if i > 0
-                    phi = 2 * pi - big(acos(big(i) / rho))
+    for axiconang in axang
+        for order in ord
+            beamaux = Vector{BigFloat}()
+            alfcount += 1
+            for j in y, i in x
+                rho =  sqrt(big(i)^2 + big(j)^2)
+                if j > 0
+                    phi = big(acos(big(i) / rho))
                 else
-                    phi = pi +  big(acos(-big(i) / rho))
+                    if i > 0
+                        phi = 2 * pi - big(acos(big(i) / rho))
+                    else
+                        phi = pi +  big(acos(-big(i) / rho))
+                    end
                 end
+                push!(beamaux, abs(besbeam(psiamp, big(axiconang), order, rho, phi, z)))
             end
-            push!(beamaux,abs(besbeam(psiamp, big(axiconang), order, rho, phi, z)))
+            push!(htmaps, heatmap(x, y,  reshape(beamaux, (nx, ny)), xlabel ='x', ylabel='y', title = '(' * alf[alfcount] * ')' , titlefontsize = 12, xlabelfontsize = 9, ylabelfontsize = 9))
         end
-        push!(htmaps, heatmap(x, y,  reshape(beamaux, (nx, ny))))
+        x = x / mag
+        y = y / mag
+        mag = 4
     end
-    savefig(plot(htmaps..., layout = (3, 3),  xtickfontsize = 7, yfontsize = 7), "plotorg.png")
+    savefig(plot(htmaps..., layout = (3, 3),  xtickfontsize = 9, yfontsize = 9, size =(1200,900)), "plotorg.png")
 end
+
+
 
 function makepltpartial(nx, ny, ry, rx, psiamp)
     z = 0
@@ -82,31 +108,43 @@ function makepltpartial(nx, ny, ry, rx, psiamp)
     y = range(-ry, ry, ny)
     axang = [deg2rad(1), deg2rad(10), deg2rad(40)]
     ord = [0, 1, 5]
+    mag = 10
+    testc = 0
+    alf = ['a','b', 'c', 'd', 'e', 'f', 'g', 'h', 'i' ]
+    alfcount = 0
     htmaps = Vector{Any}()
-    for order in ord, axiconang in axang
-        beamaux = Vector{BigFloat}()
-        for j in y, i in x
-            rho =  sqrt(big(i)^2 + big(j)^2)
-            r = sqrt(big(i)^2 + big(j)^2 + z^2)
-            if j > 0
-                phi = big(acos(big(i) / rho))
-            else
-                if i > 0
-                    phi = 2 * pi - big(acos(big(i) / rho))
+    for axiconang in axang
+        for order in ord
+            beamaux = Vector{BigFloat}()
+            alfcount+=1
+            for j in y, i in x
+                rho =  sqrt(big(i)^2 + big(j)^2)
+                r = sqrt(big(i)^2 + big(j)^2 + z^2)
+                if j > 0
+                    phi = big(acos(big(i) / rho))
                 else
-                    phi = pi +  big(acos(-big(i) / rho))
+                    if i > 0
+                        phi = 2 * pi - big(acos(big(i) / rho))
+                    else
+                        phi = pi +  big(acos(-big(i) / rho))
+                    end
                 end
+                theta = acos(z)
+                push!(beamaux,abs(partialwavexp(psiamp, big(axiconang), order, r, theta, phi)))
+                println(testc)
+                testc+=1
             end
-            theta = acos(z)
-            push!(beamaux,abs(partialwavexp(psiamp, big(axiconang), order, r, theta, phi)))
+            push!(htmaps, heatmap(x, y,  reshape(beamaux, (nx, ny)), xlabel ='x', ylabel='y', title = '(' * alf[alfcount] * ')' , titlefontsize = 12, xlabelfontsize = 9, ylabelfontsize = 9))
         end
-        push!(htmaps, heatmap(x, y,  reshape(beamaux, (nx, ny))))
+        x = x / mag
+        y = y / mag
+        mag = 4
     end
-    savefig(plot(htmaps..., layout = (3, 3),  xtickfontsize = 7, yfontsize = 7), "plotpart.png")
+savefig(plot(htmaps..., layout = (3, 3),  xtickfontsize = 9, yfontsize = 9, size =(1200,900)), "plotpart_test.png")
 end
 
-makepltpartial(200, 200, 20, 20, 1)
-makeplotbes(200, 200, 20, 20, 1)
+makepltpartial(200, 200, 0.2, 0.2, 1)
+#makeplotbes(200, 200, 0.2, 0.2, 1)
 
 
 

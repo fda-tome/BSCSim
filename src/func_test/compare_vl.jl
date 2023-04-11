@@ -1,5 +1,5 @@
 using SpecialFunctions
-using AssociatedLegendrePolynomials
+using LegendrePolynomials
 using DelimitedFiles
 
 function shortsphebess!(arr::Matrix{BigFloat}, dimy)
@@ -50,7 +50,7 @@ function legenpol!(arr::Matrix{BigFloat}, dimy)
     for j in 1:25
         for i in 1:j
             for k in 1:1000
-                arr[j, 1000 * (i - 1) + k] = big(Plm( j - 1, i - 1, big((k - 500) / 500)))
+                arr[j, 1000 * (i - 1) + k] = big(Plm(big((k - 500) / 500), j - 1, i - 1 ))
             end
         end
     end
@@ -58,7 +58,7 @@ end
 
 function compare!(func::Function,  arrmat::Matrix{BigFloat}, arrjl::Matrix{BigFloat}, dimx::Int, dimy::Int, csvname::String)
     func(arrjl, dimy)
-    arrmat = readdlm(csvname, ',', BigFloat)
+    arrmat = readdlm(csvname, ',')
     reshape(arrmat, dimx, dimy)
     err = zeros(BigFloat, dimx, dimy)
     for i in 1:dimx
@@ -71,19 +71,19 @@ function compare!(func::Function,  arrmat::Matrix{BigFloat}, arrjl::Matrix{BigFl
 end
 
 
-setprecision(1661)
-arrmat = Matrix{BigFloat}(undef, 25, 10000)
+#=arrmat = Matrix{BigFloat}(undef, 25, 10000)
 arrjl = Matrix{BigFloat}(undef, 25, 10000)
 compare!(shortsphebess!, arrmat, arrjl, 25, 10000, "sphe_bess_curto_mat.csv")
 arrmat = Matrix{BigFloat}(undef, 25, 100000)
 arrjl = Matrix{BigFloat}(undef, 25, 100000)
-#=compare!(longsphebess!, arrmat, arrjl, 25, 100000, "sphe_bess_longo_mat.csv")
-arrmat = Matrix{BigFloat}(undef, 9, 10000)
+compare!(longsphebess!, arrmat, arrjl, 25, 100000, "sphe_bess_longo_mat.csv")=#
+#=arrmat = Matrix{BigFloat}(undef, 9, 10000)
 arrjl = Matrix{BigFloat}(undef, 9, 10000)
-compare!(shortbess!, arrmat, arrjl, 9 , 10000, "bess_curto_mat.csv")=#
+compare!(shortbess!, arrmat, arrjl, 9 , 10000, "bess_curto_mat.csv")
 arrmat = Matrix{BigFloat}(undef, 9, 100000)
 arrjl = Matrix{BigFloat}(undef, 9, 100000)
 compare!(longbess!, arrmat, arrjl, 9, 100000, "bess_longo_mat.csv")
+=#
 arrmat = zeros(BigFloat, 25, 25000)
 arrjl = zeros(BigFloat, 25, 25000)
 compare!(legenpol!, arrmat, arrjl, 25, 25000, "pol_leg_mat.csv")
