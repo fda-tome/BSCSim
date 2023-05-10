@@ -92,6 +92,7 @@ function makeplotbes(nx, ny, ry, rx, psiamp)
                 push!(beamaux, abs(besbeam(psiamp, big(axiconang), order, rho, phi, z)))
             end
             push!(htmaps, heatmap(x, y,  reshape(beamaux, (nx, ny)), xlabel ='x', ylabel='y', title = '(' * alf[alfcount] * ')' , titlefontsize = 12, xlabelfontsize = 9, ylabelfontsize = 9))
+            println(typeof(reshape(beamaux, (nx, ny))))
         end
         x = x / mag
         y = y / mag
@@ -143,8 +144,8 @@ function makepltpartial(nx, ny, ry, rx, psiamp)
 savefig(plot(htmaps..., layout = (3, 3),  xtickfontsize = 9, yfontsize = 9, size =(1200,900)), "plotpart_test.png")
 end
 
-makepltpartial(200, 200, 0.2, 0.2, 1)
-#makeplotbes(200, 200, 0.2, 0.2, 1)
+#makepltpartial(200, 200, 0.2, 0.2, 1)
+makeplotbes(200, 200, 0.2, 0.2, 1)
 
 
 
