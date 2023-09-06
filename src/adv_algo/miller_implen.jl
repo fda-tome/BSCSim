@@ -1,4 +1,4 @@
-using SpecialFunctions
+import SpecialFunctions: besselj
 function besselN(N, z)
     cosz = cos(z)
     sinz = sin(z)
@@ -12,12 +12,13 @@ function besselN(N, z)
 end
 
 
-function besselj(orderLim, arg, tol)
-    N = tol * orderLim
-    println(N)
+function SpecialFunctions.besselj(orderLim, arg, tol)
+    @assert tol>orderLim "Tolerance must be greater than the order to be calculated"
+    N = tol
     values = Vector{typeof(arg)}(undef, N+2)    
     values[N+1] = 1
     values[N+2] = 0
+    norm = 0.0
     for i in N+1:-1:2
         values[i-1] = (2 * (i-1) / arg) * values[i] - values[i+1]
     end 
