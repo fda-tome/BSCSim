@@ -1,6 +1,7 @@
 using SpecialFunctions
 using LegendrePolynomials
 using Plots
+using Integrals
 using Plots.PlotMeasures
 using LaTeXStrings
 
@@ -25,12 +26,6 @@ function factorial(x::T) where T<:BigInt
     return fact[x]
 end
 
-function besbeam(psiamp, axiconang, order, rho, phi, z) 
-    k = 1000 * 2 * big(pi) / big(1.54) #fixed wavelength 1.54mm
-    kz = k * big(cos(axiconang))
-    krho = k * big(sin(axiconang))
-    return big(psiamp * besselj(order, krho * rho) * cis(order * phi) * cis(kz * z))
-end
 
 function bsccalc(n, m, axiconang)
     fract = (im ^ (n - m)) * (2 * n + 1) * factorial(big(n - m)) / factorial(big(n+m))
@@ -38,8 +33,22 @@ function bsccalc(n, m, axiconang)
     return fract * special 
 end
 
-function partialwavexp(psiamp, axiconang, order, r, theta, phi, x0, y0, z0)
-    k = 1000 * 2 * big(pi) / big(1.54)
+function completebeam(x, y, z, axang, ord, amp, k, x0, y0, z0)
+    beam = Vector{BigFloat}()
+    for zi in z, j in y, i in x        
+        push!(beam, abs(partialwavexp(amp, big(axang), ord, k, 0, 0, 0, i - x0, j - y0, zi - z0))^2)
+    end
+    return reshape(beam, (size(x)[1], size(y)[1], size(z)[1]))
+end
+
+function besbeam(psiamp, axiconang, k, order, rho, phi, z) 
+    #k = 1000 * 2 * big(pi) / big(1.54) #fixed wavelength 1.54mm
+    kz = k * cos(axiconang)
+    krho = k * sin(axiconang)
+    return big(psiamp * besselj(order, krho * rho) * cis(order * phi) * cis(kz * z))
+end
+
+function partialwavexp(psiamp, axiconang, order, k, r, theta, phi, x0, y0, z0)
     kr = k * r
     krho = k * sin(axiconang)
     kz = k * cos(axiconang)
@@ -63,12 +72,37 @@ function partialwavexp(psiamp, axiconang, order, r, theta, phi, x0, y0, z0)
     return psi * psiamp
 end
 
-function completebeam(x, y, z, axang, ord, amp, x0, y0, z0)
-    beam = Vector{BigFloat}()
-    for k in z, j in y, i in x        
-        push!(beam, abs(partialwavexp(amp, big(axang), ord, 0, 0, 0, i - x0, j - y0, k - z0))^2)
+
+function aq(f, q, l)
+    g(z,p) = f(z) * ℯ ^ (-2 * pi * q * z * im / l) 
+    return (1/l)* solve(IntegralProblem(g, 0, l), HCubatureJL()).u
+end
+
+function fw(f, n, q, l, k, x, y, z)
+    test = []
+    axang = []
+    w = 2 * pi * 2.5e6
+    c = 340
+    for j in z
+        fwpart = 0
+        for i in -n:n
+            kzq = q + 2 * pi * i / l
+            if ((w^2 / c^2) - kzq^2) < 0
+                println("erro krho")
+            end
+            if w / kzq ≤ 0
+                println("erro")
+            end
+            amp = aq(f, i, l) 
+            fwpart += partialwavexp(amp, Base.acos(q/k + (2 * pi * i) / (k * l)), 0, k, 0, 0, 0, 0, 0, j)
+            #push!(test, completebeam(x, y, z, Base.acos(q/k + (2 * pi * i) / (k * l)), 0, amp, k, 0, 0, 0))
+            push!(axang, rad2deg(Base.acos(q/k + (2 * pi * i) / (k * l))))
+        end
+        push!(test, fwpart)
     end
-    return reshape(beam, (size(x)[1], size(y)[1], size(z)[1]))
+    println(findmax(axang))
+    println(findmin(axang))
+    return test
 end
 
 
@@ -139,8 +173,25 @@ function makeplterr(figname, xlabel, ylabel, x, y, z, amp, x0, y0, z0)
     savefig(plot(htmaps..., layout = (3, 3), size =(1200,900)), figname)
 end
 
-
-
+function test(z)
+    l = 0.05
+    l1 = l / 10
+    l2 = 3 * l / 10
+    l3 = 4 * l / 10
+    l4 = 6 * l / 10
+    l5 = 7 * l / 10
+    l6 = 9 * l / 10
+    if l1 ≤ z ≤ l2
+        return -4 * (z - l1) * (z - l2) / (l2-l1) ^ 2
+    end
+    if l3 ≤ z ≤ l4
+        return 1
+    end
+    if l5 ≤ z ≤ l6
+        return -4 * (z - l5) * (z - l6) / (l6-l5) ^ 2
+    end
+    return 0
+end
 
 
 
